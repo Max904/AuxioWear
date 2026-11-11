@@ -23,12 +23,11 @@ jobs:
           java-version: "21"
           distribution: "jetbrains"
 
-      # Installs the SDK and accepts licenses so Gradle can fetch platform 37 on its own.
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
+      # ubuntu-latest already ships the Android SDK. Just accept licenses and add platform 37.
       - name: Install Android platform
-        run: sdkmanager "platforms;android-37"
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37"
 
       - name: Set up Gradle (with dependency caching)
         uses: gradle/actions/setup-gradle@v4
