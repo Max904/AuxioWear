@@ -159,12 +159,15 @@ data class Status(
     val auxioInstalled: Boolean,
     val auxioConnected: Boolean,
     val auxioPackage: String = "",
+    /** ARGB accent colour the watch should use, 0 = none chosen. */
+    val accent: Int = 0,
 ) {
     fun toJson(): JSONObject =
         JSONObject()
             .put("inst", auxioInstalled)
             .put("conn", auxioConnected)
             .put("pkg", auxioPackage)
+            .put("acc", accent)
 
     companion object {
         fun fromJson(j: JSONObject) =
@@ -172,6 +175,7 @@ data class Status(
                 auxioInstalled = j.optBoolean("inst", false),
                 auxioConnected = j.optBoolean("conn", false),
                 auxioPackage = j.optString("pkg", ""),
+                accent = j.optInt("acc", 0),
             )
     }
 }

@@ -90,6 +90,7 @@ class RequestHandler(
             auxioInstalled = link.installedPackage() != null,
             auxioConnected = connected,
             auxioPackage = link.connectedPackage ?: "",
+            accent = AccentTheme.colorOf(context),
         )
 
     private suspend fun page(

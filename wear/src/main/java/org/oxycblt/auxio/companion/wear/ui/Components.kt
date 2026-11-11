@@ -48,7 +48,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -256,6 +256,7 @@ fun PageDots(count: Int, current: Int, modifier: Modifier = Modifier) {
     }
 }
 
-/** Gradient used for the "Shuffle all" tile, in the spirit of Spotify's Liked Songs tile. */
-val ShuffleTileBrush: Brush =
-    Brush.linearGradient(listOf(Color(0xFF4A2BEA), Color(0xFFB6F2D2)))
+/** Gradient for the "Shuffle all" tile (Spotify's Liked Songs tile), built from the accent. */
+@Composable
+fun shuffleTileBrush(): Brush =
+    Brush.linearGradient(listOf(lerp(Palette.Accent, Palette.Black, 0.55f), Palette.Accent))

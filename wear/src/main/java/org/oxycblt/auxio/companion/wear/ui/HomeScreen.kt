@@ -107,7 +107,7 @@ fun HomeScreen(
                     vm.shuffleAll()
                     onPlayer()
                 },
-                tileBackground = ShuffleTileBrush,
+                tileBackground = shuffleTileBrush(),
             )
         }
 

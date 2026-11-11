@@ -22,6 +22,7 @@ import android.app.Application
 import android.graphics.BitmapFactory
 import android.os.SystemClock
 import android.util.LruCache
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.AndroidViewModel
@@ -49,6 +50,7 @@ import org.oxycblt.auxio.companion.protocol.Status
 import org.oxycblt.auxio.companion.protocol.TabKind
 import org.oxycblt.auxio.companion.protocol.Transport
 import org.oxycblt.auxio.companion.protocol.Wire
+import org.oxycblt.auxio.companion.wear.ui.Palette
 
 /** A [PlayerState] plus when we received it, so the UI can extrapolate the playback position. */
 data class Snapshot(val state: PlayerState = PlayerState(), val receivedAt: Long = 0L) {
@@ -98,7 +100,12 @@ class WatchViewModel(app: Application) : AndroidViewModel(app) {
     private val artCache = LruCache<String, ImageBitmap>(80)
     private val inflight = ConcurrentHashMap<String, CompletableDeferred<ImageBitmap?>>()
 
+    private val themePrefs = app.getSharedPreferences("theme", 0)
+
     init {
+        // Start with the last accent the phone told us about, so there is no flash of default.
+        themePrefs.getInt("accent", 0).takeIf { it != 0 }?.let { Palette.Accent = Color(it) }
+
         // Phone -> watch pushes.
         viewModelScope.launch {
             link.events.collect { event ->
@@ -107,7 +114,10 @@ class WatchViewModel(app: Application) : AndroidViewModel(app) {
                         event.state?.let {
                             _player.value = Snapshot(it, SystemClock.elapsedRealtime())
                         }
-                    Evt.STATUS -> _status.value = event.status
+                    Evt.STATUS -> {
+                        _status.value = event.status
+                        applyAccent(event.status?.accent ?: 0)
+                    }
                 }
             }
         }
@@ -166,6 +176,13 @@ class WatchViewModel(app: Application) : AndroidViewModel(app) {
                 }
             }
         }
+    }
+
+    /** Adopt the accent chosen on the phone (ARGB, 0 = none) and remember it. */
+    private fun applyAccent(argb: Int) {
+        if (argb == 0 || Palette.Accent == Color(argb)) return
+        Palette.Accent = Color(argb)
+        themePrefs.edit().putInt("accent", argb).apply()
     }
 
     /** Called by the activity when it becomes visible / hidden. */

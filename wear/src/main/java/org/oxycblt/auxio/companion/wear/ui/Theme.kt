@@ -53,12 +53,16 @@ import kotlinx.coroutines.delay
 
 /**
  * The look: pure black canvas, one loud accent, heavy white type and muted grey secondary text,
- * the way Spotify's Wear OS app is styled. Change [Accent] to re-skin the whole app.
+ * the way Spotify's Wear OS app is styled. The accent follows the colour picked in the phone app.
  */
 object Palette {
     val Black = Color(0xFF000000)
     val White = Color(0xFFFFFFFF)
-    val Accent = Color(0xFF1ED760)
+    /**
+     * The accent, kept in sync with the phone's Auxio colour scheme. It is Compose state, so
+     * everything that reads it recolours when the phone reports a new one. Starts as Auxio blue.
+     */
+    var Accent: Color by mutableStateOf(Color(0xFFA1C9FD))
     val Surface = Color(0xFF1F1F1F)
     val SurfaceHigh = Color(0xFF2C2C2C)
     val Muted = Color(0xFFB3B3B3)

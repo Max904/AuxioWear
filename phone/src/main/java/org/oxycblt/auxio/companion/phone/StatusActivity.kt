@@ -20,10 +20,12 @@ package org.oxycblt.auxio.companion.phone
 
 import android.app.Activity
 import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
 import android.widget.Button
+import android.widget.GridLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -43,6 +45,7 @@ import org.oxycblt.auxio.companion.protocol.Wire
 class StatusActivity : Activity() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private lateinit var report: TextView
+    private lateinit var swatches: GridLayout
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -64,6 +67,8 @@ class StatusActivity : Activity() {
                 setPadding(0, pad / 2, 0, pad)
             }
         report = TextView(this).apply { textSize = 16f }
+        swatches = GridLayout(this).apply { columnCount = 4 }
+        buildSwatches()
         val refresh =
             Button(this).apply {
                 text = "Check again"
@@ -90,6 +95,23 @@ class StatusActivity : Activity() {
                 addView(report)
                 addView(refresh)
                 addView(openAuxio)
+                addView(
+                    TextView(this@StatusActivity).apply {
+                        text = "Watch accent color"
+                        textSize = 18f
+                        typeface = Typeface.DEFAULT_BOLD
+                        setPadding(0, pad, 0, pad / 4)
+                    }
+                )
+                addView(
+                    TextView(this@StatusActivity).apply {
+                        text =
+                            "Auxio doesn't share its theme with other apps. Pick the same accent " +
+                                "you use in Auxio's settings and the watch will match it."
+                        setPadding(0, 0, 0, pad / 2)
+                    }
+                )
+                addView(swatches)
             }
         val root = ScrollView(this).apply { addView(content) }
         setContentView(root)
@@ -99,6 +121,51 @@ class StatusActivity : Activity() {
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(bars.left, bars.top, bars.right, bars.bottom)
             insets
+        }
+    }
+
+    /** One tappable colour dot per Auxio accent, the selected one ringed. */
+    private fun buildSwatches() {
+        swatches.removeAllViews()
+        val dp = resources.displayMetrics.density
+        val selected = AccentTheme.selected(this)
+        AccentTheme.OPTIONS.forEachIndexed { index, option ->
+            val dot =
+                View(this).apply {
+                    background =
+                        GradientDrawable().apply {
+                            shape = GradientDrawable.OVAL
+                            setColor(AccentTheme.colorOf(this@StatusActivity, index))
+                            if (index == selected) {
+                                setStroke((3 * dp).toInt(), android.graphics.Color.BLACK)
+                            }
+                        }
+                }
+            val label =
+                TextView(this).apply {
+                    text = option.name
+                    textSize = 11f
+                    gravity = Gravity.CENTER
+                }
+            val cell =
+                LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    gravity = Gravity.CENTER_HORIZONTAL
+                    setPadding(0, (6 * dp).toInt(), 0, (6 * dp).toInt())
+                    addView(dot, LinearLayout.LayoutParams((44 * dp).toInt(), (44 * dp).toInt()))
+                    addView(label)
+                    setOnClickListener {
+                        AccentTheme.select(this@StatusActivity, index)
+                        buildSwatches()
+                    }
+                }
+            swatches.addView(
+                cell,
+                GridLayout.LayoutParams().apply {
+                    width = (72 * dp).toInt()
+                    height = GridLayout.LayoutParams.WRAP_CONTENT
+                },
+            )
         }
     }
 

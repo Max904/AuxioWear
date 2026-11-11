@@ -53,3 +53,9 @@ demand via *Actions → Wear OS Companion Build → Run workflow*). Download `Au
 `Auxio_Companion_Wear` from the run's artifacts. Install both from the **same run**: each run generates a fresh debug
 key, and the Data Layer only links apps signed with the same key. On compile failure the logs show the errors and
 the Gradle reports are uploaded.
+
+## Theme sync
+Auxio stores its accent in private preferences no other app can read, so the colour is chosen once in the phone
+app ("Watch accent color", same 16 accents + Dynamic as Auxio). The watch picks it up within a few seconds and
+remembers it. "Dynamic" follows the phone's Material You colour live. Making this fully automatic would need a small
+patch to Auxio itself (e.g. publishing its accent in the media browser root extras).
