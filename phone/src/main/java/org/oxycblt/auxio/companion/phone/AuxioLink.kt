@@ -250,7 +250,7 @@ class AuxioLink(private val context: Context) {
                 },
             queueTitle = c.queueTitle?.toString() ?: "",
             queueIndex =
-                if (activeQueueId == MediaSessionCompat.QueueItem.UNKNOWN_ID) -1
+                if (activeQueueId == MediaSessionCompat.QueueItem.UNKNOWN_ID.toLong()) -1
                 else activeQueueId.toInt(),
             queueSize = c.queue?.size ?: 0,
             artVersion = art?.let { System.identityHashCode(it) } ?: 0,

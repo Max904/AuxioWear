@@ -35,7 +35,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build phone bridge and watch app (debug)
-        run: ./gradlew :phone:assembleDebug :wear:assembleDebug --stacktrace
+        run: ./gradlew :phone:assembleDebug :wear:assembleDebug --continue --stacktrace
 
       # Both APKs come from one run, so they share a debug key. The Wear Data Layer only links
       # apps signed with the same key, so install these two together.
