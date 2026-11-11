@@ -19,12 +19,12 @@
 package org.oxycblt.auxio.companion.wear.ui
 
 import android.os.SystemClock
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,6 +42,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -75,6 +76,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.rotary.onRotaryScrollEvent
 import androidx.compose.ui.layout.ContentScale
@@ -86,6 +88,7 @@ import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
 import androidx.wear.compose.foundation.lazy.rememberScalingLazyListState
 import kotlin.math.abs
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.oxycblt.auxio.companion.wear.Snapshot
 import org.oxycblt.auxio.companion.wear.WatchViewModel
 
@@ -104,6 +107,9 @@ private fun rememberPositionMs(snap: Snapshot): State<Long> =
         }
     }
 
+private fun Snapshot.progressAt(position: Long): Float =
+    if (state.durationMs > 0) (position.toFloat() / state.durationMs).coerceIn(0f, 1f) else 0f
+
 /**
  * The now-playing experience. Three vertical pages, like Spotify's: full-bleed cover, transport
  * controls, and the queue (with shuffle / repeat / sleep timer). The crown changes the phone's
@@ -112,7 +118,6 @@ private fun rememberPositionMs(snap: Snapshot): State<Long> =
 @Composable
 fun PlayerScreen(vm: WatchViewModel, onSleep: () -> Unit) {
     val snap by vm.player.collectAsState()
-    val npArt by vm.npArt.collectAsState()
     val state = snap.state
 
     if (!state.active) {
@@ -125,6 +130,7 @@ fun PlayerScreen(vm: WatchViewModel, onSleep: () -> Unit) {
         return
     }
 
+    val scope = rememberCoroutineScope()
     val pager = rememberPagerState(pageCount = { PAGE_COUNT })
     val focus = remember { FocusRequester() }
 
@@ -141,6 +147,17 @@ fun PlayerScreen(vm: WatchViewModel, onSleep: () -> Unit) {
         }
         lastVolume = state.volume
     }
+
+    // Spotify hides the page dots on the cover page after a moment, so the art stays clean.
+    var dotsVisible by remember { mutableStateOf(true) }
+    LaunchedEffect(pager.currentPage) {
+        dotsVisible = true
+        if (pager.currentPage == PAGE_COVER) {
+            delay(2500)
+            dotsVisible = false
+        }
+    }
+    val dotsAlpha by animateFloatAsState(if (dotsVisible) 1f else 0f, label = "dots")
 
     Box(
         Modifier.fillMaxSize()
@@ -163,7 +180,12 @@ fun PlayerScreen(vm: WatchViewModel, onSleep: () -> Unit) {
         VerticalPager(state = pager, modifier = Modifier.fillMaxSize()) { page ->
             when (page) {
                 PAGE_COVER -> CoverPage(vm, snap)
-                PAGE_CONTROLS -> ControlsPage(vm, snap)
+                PAGE_CONTROLS ->
+                    ControlsPage(
+                        vm,
+                        snap,
+                        onQueue = { scope.launch { pager.animateScrollToPage(PAGE_QUEUE) } },
+                    )
                 else -> QueuePage(vm, snap, onSleep)
             }
         }
@@ -171,7 +193,10 @@ fun PlayerScreen(vm: WatchViewModel, onSleep: () -> Unit) {
         PageDots(
             count = PAGE_COUNT,
             current = pager.currentPage,
-            modifier = Modifier.align(Alignment.CenterEnd).padding(end = 7.dp),
+            modifier =
+                Modifier.align(Alignment.CenterEnd).padding(end = 7.dp).graphicsLayer {
+                    alpha = dotsAlpha
+                },
         )
 
         if (showVolume && state.maxVolume > 0) {
@@ -180,13 +205,11 @@ fun PlayerScreen(vm: WatchViewModel, onSleep: () -> Unit) {
     }
 }
 
+/** Page 1: just the cover, the title and the artist. Tap to pause / resume. */
 @Composable
 private fun CoverPage(vm: WatchViewModel, snap: Snapshot) {
     val state = snap.state
     val art by vm.npArt.collectAsState()
-    val position by rememberPositionMs(snap)
-    val progress =
-        if (state.durationMs > 0) (position.toFloat() / state.durationMs).coerceIn(0f, 1f) else 0f
 
     Box(Modifier.fillMaxSize().clickable { vm.toggle() }) {
         val bitmap = art
@@ -208,23 +231,143 @@ private fun CoverPage(vm: WatchViewModel, snap: Snapshot) {
             Modifier.fillMaxSize()
                 .background(
                     Brush.verticalGradient(
-                        0f to Color(0xAA000000),
-                        0.3f to Color.Transparent,
-                        0.5f to Color(0x22000000),
-                        1f to Color(0xF0000000),
+                        0f to Color(0x99000000),
+                        0.25f to Color.Transparent,
+                        0.55f to Color(0x11000000),
+                        1f to Color(0xE6000000),
                     )
                 )
         )
 
-        // Progress around the bezel.
+        Clock(Modifier.align(Alignment.TopCenter).padding(top = 14.dp), size = 22.sp)
+
+        // Paused: the pause glyph appears over the cover (and disappears again on resume).
+        if (!state.playing) {
+            Box(
+                Modifier.align(Alignment.Center).size(84.dp).clip(CircleShape).background(Color(0x66000000)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Ico(Icons.Rounded.Pause, size = 52.dp)
+            }
+        }
+
+        Column(
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 30.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            // Long titles scroll across the whole width, short ones sit centred.
+            Txt(state.title, size = 24.sp, align = TextAlign.Center, marquee = true, modifier = Modifier.fillMaxWidth())
+            Spacer(Modifier.height(2.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // Stands in for Spotify's logo next to the artist.
+                Box(
+                    Modifier.size(22.dp).clip(CircleShape).background(Palette.Accent),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Ico(Icons.Rounded.MusicNote, tint = Palette.Black, size = 14.dp)
+                }
+                Spacer(Modifier.width(6.dp))
+                Txt(state.artist, size = 20.sp, weight = FontWeight.Medium, color = Palette.Accent)
+            }
+        }
+    }
+}
+
+/** Page 2: dimmed cover behind transport controls with a progress ring around play/pause. */
+@Composable
+private fun ControlsPage(vm: WatchViewModel, snap: Snapshot, onQueue: () -> Unit) {
+    val state = snap.state
+    val art by vm.npArt.collectAsState()
+    val position by rememberPositionMs(snap)
+    val progress = snap.progressAt(position)
+    val atStart = state.queueIndex <= 0 && state.repeat == 0
+
+    Box(Modifier.fillMaxSize()) {
+        val bitmap = art
+        if (bitmap != null) {
+            Image(
+                bitmap = bitmap,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+        Box(Modifier.fillMaxSize().background(Color(0xCC000000)))
+
+        Clock(Modifier.align(Alignment.TopCenter).padding(top = 14.dp), color = Palette.White, size = 20.sp)
+
+        // Title and artist under the clock.
+        Column(
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = 40.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Txt(state.title, size = 24.sp, align = TextAlign.Center, marquee = true, modifier = Modifier.fillMaxWidth())
+            Txt(
+                state.artist,
+                size = 18.sp,
+                weight = FontWeight.Medium,
+                color = Palette.Accent,
+                align = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 30.dp),
+            )
+        }
+
+        // Previous / play-pause in a progress ring / next.
+        Row(
+            modifier = Modifier.align(Alignment.Center).fillMaxWidth().padding(horizontal = 20.dp).padding(top = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            SkipButton(Icons.Rounded.SkipPrevious, enabled = !atStart, onClick = { vm.prev() })
+            PlayRing(progress = progress, playing = state.playing, onClick = { vm.toggle() })
+            SkipButton(Icons.Rounded.SkipNext, enabled = true, onClick = { vm.next() })
+        }
+
+        // Shuffle and repeat flank the queue button, which sits lower, following the bezel.
+        Row(
+            modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 42.dp).padding(bottom = 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Bottom,
+        ) {
+            Box(Modifier.padding(bottom = 26.dp)) {
+                IconToggle(Icons.Rounded.Shuffle, active = state.shuffle, onClick = { vm.setShuffle(!state.shuffle) })
+            }
+            IconToggle(Icons.AutoMirrored.Rounded.QueueMusic, active = false, onClick = onQueue)
+            Box(Modifier.padding(bottom = 26.dp)) {
+                IconToggle(
+                    if (state.repeat == 2) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat,
+                    active = state.repeat != 0,
+                    onClick = { vm.setRepeat((state.repeat + 1) % 3) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SkipButton(icon: androidx.compose.ui.graphics.vector.ImageVector, enabled: Boolean, onClick: () -> Unit) {
+    Box(
+        Modifier.size(56.dp).clip(CircleShape).clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Ico(icon, tint = if (enabled) Palette.White else Color(0x55FFFFFF), size = 46.dp)
+    }
+}
+
+/** Play/pause glyph inside a ring that fills with the accent colour as the track plays. */
+@Composable
+private fun PlayRing(progress: Float, playing: Boolean, onClick: () -> Unit) {
+    Box(
+        Modifier.size(92.dp).clip(CircleShape).clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
         Canvas(Modifier.fillMaxSize()) {
             val stroke = 3.dp.toPx()
-            val inset = stroke / 2 + 2.dp.toPx()
-            val topLeft = Offset(inset, inset)
-            val arc = Size(size.width - inset * 2, size.height - inset * 2)
+            val topLeft = Offset(stroke / 2, stroke / 2)
+            val arc = Size(size.width - stroke, size.height - stroke)
             drawArc(
-                color = Color(0x40FFFFFF),
-                startAngle = -90f,
+                color = Color(0x55FFFFFF),
+                startAngle = 0f,
                 sweepAngle = 360f,
                 useCenter = false,
                 topLeft = topLeft,
@@ -241,112 +384,7 @@ private fun CoverPage(vm: WatchViewModel, snap: Snapshot) {
                 style = Stroke(stroke, cap = StrokeCap.Round),
             )
         }
-
-        Clock(Modifier.align(Alignment.TopCenter).padding(top = 20.dp))
-
-        if (!state.playing) {
-            Ico(Icons.Rounded.PlayArrow, Modifier.align(Alignment.Center), size = 52.dp)
-        }
-
-        Column(
-            modifier =
-                Modifier.align(Alignment.BottomCenter).padding(start = 30.dp, end = 30.dp, bottom = 32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Txt(
-                state.title,
-                size = 20.sp,
-                align = TextAlign.Center,
-                marquee = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Ico(Icons.Rounded.MusicNote, tint = Palette.Accent, size = 15.dp)
-                Spacer(Modifier.width(3.dp))
-                Txt(
-                    state.artist,
-                    size = 15.sp,
-                    weight = FontWeight.Medium,
-                    color = Palette.Accent,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ControlsPage(vm: WatchViewModel, snap: Snapshot) {
-    val state = snap.state
-    val position by rememberPositionMs(snap)
-    val progress =
-        if (state.durationMs > 0) (position.toFloat() / state.durationMs).coerceIn(0f, 1f) else 0f
-
-    Column(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 34.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Txt(
-            state.title,
-            size = 16.sp,
-            align = TextAlign.Center,
-            marquee = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Txt(
-            state.artist,
-            size = 13.sp,
-            weight = FontWeight.Medium,
-            color = Palette.Muted,
-            align = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Spacer(Modifier.height(10.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconToggle(Icons.Rounded.SkipPrevious, active = false, onClick = { vm.prev() })
-            Box(
-                Modifier.size(64.dp).clip(CircleShape).background(Palette.White).clickable { vm.toggle() },
-                contentAlignment = Alignment.Center,
-            ) {
-                Ico(
-                    if (state.playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                    tint = Palette.Black,
-                    size = 38.dp,
-                )
-            }
-            IconToggle(Icons.Rounded.SkipNext, active = false, onClick = { vm.next() })
-        }
-
-        Spacer(Modifier.height(8.dp))
-
-        // Tap anywhere on the bar to seek there.
-        Box(
-            modifier =
-                Modifier.fillMaxWidth().height(24.dp).pointerInput(state.durationMs) {
-                    detectTapGestures { tap ->
-                        if (state.durationMs > 0) {
-                            vm.seekTo((tap.x / size.width * state.durationMs).toLong())
-                        }
-                    }
-                },
-            contentAlignment = Alignment.CenterStart,
-        ) {
-            Box(
-                Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(Palette.SurfaceHigh)
-            )
-            Box(
-                Modifier.fillMaxWidth(progress).height(4.dp).clip(RoundedCornerShape(2.dp)).background(Palette.White)
-            )
-        }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Txt(formatTime(position), size = 12.sp, weight = FontWeight.Medium, color = Palette.Muted)
-            Txt(formatTime(state.durationMs), size = 12.sp, weight = FontWeight.Medium, color = Palette.Muted)
-        }
+        Ico(if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, size = 48.dp)
     }
 }
 
@@ -403,6 +441,7 @@ private fun QueuePage(vm: WatchViewModel, snap: Snapshot, onSleep: () -> Unit) {
                 vm,
                 entry,
                 highlight = entry.index == state.queueIndex,
+                bold = true,
                 onClick = { vm.skipToQueue(entry.index) },
             )
         }

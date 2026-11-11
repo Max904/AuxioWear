@@ -20,19 +20,23 @@ package org.oxycblt.auxio.companion.wear.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -40,6 +44,7 @@ import androidx.compose.ui.unit.sp
 import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
 import androidx.wear.compose.foundation.lazy.rememberScalingLazyListState
 import org.oxycblt.auxio.companion.protocol.MediaEntry
+import org.oxycblt.auxio.companion.protocol.TabKind
 import org.oxycblt.auxio.companion.wear.WatchViewModel
 
 const val SRC_BROWSE = "b"
@@ -77,6 +82,9 @@ fun ListScreen(
             .collect { center -> if (center >= paged.items.size - 2) paged.loadMore() }
     }
 
+    val isLibraryRoot = source == SRC_BROWSE && arg.isEmpty()
+
+    Box(Modifier.fillMaxSize()) {
     ScalingLazyColumn(
         modifier = Modifier.fillMaxSize(),
         state = listState,
@@ -84,10 +92,19 @@ fun ListScreen(
         contentPadding = PaddingValues(top = 30.dp, bottom = 44.dp, start = 12.dp, end = 12.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
+        if (isLibraryRoot) {
+            item {
+                Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Ico(Icons.Rounded.LibraryMusic, size = 28.dp)
+                }
+            }
+        }
         item {
+            // Spotify's list titles are small, bold and slightly grey.
             Txt(
-                title,
-                size = 20.sp,
+                if (isLibraryRoot) "Your library" else title,
+                size = 16.sp,
+                color = Color(0xFFE0E0E0),
                 maxLines = 2,
                 align = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 2.dp),
@@ -122,19 +139,21 @@ fun ListScreen(
                         modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 2.dp),
                     )
                 }
-                EntryRow(
-                    vm,
-                    entry,
-                    onClick = {
-                        when {
-                            entry.browsable -> onOpenEntry(entry)
-                            entry.playable -> {
-                                vm.play(entry.id, entry.childOf)
-                                onPlayed()
-                            }
+                val open: () -> Unit = {
+                    when {
+                        entry.browsable -> onOpenEntry(entry)
+                        entry.playable -> {
+                            vm.play(entry.id, entry.childOf)
+                            onPlayed()
                         }
-                    },
-                )
+                    }
+                }
+                if (entry.tab != TabKind.NONE) {
+                    // Library tabs are plain icon + text rows, no cover.
+                    PlainRow(entry.title, iconFor(entry), onClick = { open() })
+                } else {
+                    EntryRow(vm, entry, onClick = { open() })
+                }
             }
         }
 
@@ -177,5 +196,7 @@ fun ListScreen(
                 )
             }
         }
+    }
+    ScrollBar(listState)
     }
 }

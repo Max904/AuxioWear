@@ -262,6 +262,16 @@ object TabKind {
     const val MORE = "more"
 }
 
+/** What kind of music item an entry is (so the watch can draw artists round, like Spotify). */
+object ItemKind {
+    const val NONE = ""
+    const val SONG = "song"
+    const val ALBUM = "album"
+    const val ARTIST = "artist"
+    const val GENRE = "genre"
+    const val PLAYLIST = "playlist"
+}
+
 /** One row in a list: a library item, a search result or a queue item. */
 data class MediaEntry(
     val id: String,
@@ -276,6 +286,8 @@ data class MediaEntry(
     /** Parent to play this entry in the context of, echoed back in [Req.PLAY]. */
     val childOf: String = "",
     val tab: String = TabKind.NONE,
+    /** One of [ItemKind]. */
+    val kind: String = ItemKind.NONE,
     /** Absolute queue index, -1 outside of the queue. */
     val index: Int = -1,
 ) {
@@ -290,6 +302,7 @@ data class MediaEntry(
             .put("g", group)
             .put("c", childOf)
             .put("k", tab)
+            .put("kd", kind)
             .put("x", index)
 
     companion object {
@@ -304,6 +317,7 @@ data class MediaEntry(
                 group = j.optString("g", ""),
                 childOf = j.optString("c", ""),
                 tab = j.optString("k", ""),
+                kind = j.optString("kd", ""),
                 index = j.optInt("x", -1),
             )
     }

@@ -24,7 +24,9 @@ import android.text.format.DateFormat
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.ui.Alignment
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -80,13 +82,35 @@ fun Txt(
     align: TextAlign = TextAlign.Start,
     marquee: Boolean = false,
 ) {
-    BasicText(
-        text = text,
-        modifier = if (marquee) modifier.basicMarquee() else modifier,
-        style = TextStyle(color = color, fontSize = size, fontWeight = weight, textAlign = align),
-        maxLines = maxLines,
-        overflow = if (marquee) TextOverflow.Clip else TextOverflow.Ellipsis,
-    )
+    val style = TextStyle(color = color, fontSize = size, fontWeight = weight, textAlign = align)
+    if (marquee) {
+        // Short text stays put (centred if asked), long text scrolls forever like Spotify's.
+        Box(
+            modifier,
+            contentAlignment =
+                when (align) {
+                    TextAlign.Center -> Alignment.Center
+                    TextAlign.End -> Alignment.CenterEnd
+                    else -> Alignment.CenterStart
+                },
+        ) {
+            BasicText(
+                text = text,
+                modifier = Modifier.basicMarquee(iterations = Int.MAX_VALUE),
+                style = style,
+                maxLines = 1,
+                overflow = TextOverflow.Clip,
+            )
+        }
+    } else {
+        BasicText(
+            text = text,
+            modifier = modifier,
+            style = style,
+            maxLines = maxLines,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
 }
 
 @Composable

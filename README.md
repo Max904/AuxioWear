@@ -59,3 +59,8 @@ Auxio stores its accent in private preferences no other app can read, so the col
 app ("Watch accent color", same 16 accents + Dynamic as Auxio). The watch picks it up within a few seconds and
 remembers it. "Dynamic" follows the phone's Material You colour live. Making this fully automatic would need a small
 patch to Auxio itself (e.g. publishing its accent in the media browser root extras).
+
+## UI notes (matched to Spotify's watch app screenshots)
+Cover page: accent clock, endlessly scrolling title, tap = pause with a pause glyph. Controls page: dimmed cover,
+progress ring around play/pause, shuffle · queue · repeat on an arc. Lists: regular-weight titles, round covers for
+artists, grey pill shortcuts, plain icon rows for the library tabs, curved scroll bar on the right edge.

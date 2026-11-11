@@ -45,6 +45,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import org.oxycblt.auxio.companion.protocol.ItemKind
 import org.oxycblt.auxio.companion.protocol.MediaEntry
 import org.oxycblt.auxio.companion.protocol.PlayerState
 import org.oxycblt.auxio.companion.protocol.TabKind
@@ -334,6 +335,7 @@ class AuxioLink(private val context: Context) {
                     subtitle = d.subtitle?.toString() ?: "",
                     art = artKey(d.iconUri),
                     playable = true,
+                    kind = ItemKind.SONG,
                     index = item.queueId.toInt(),
                 )
             }
@@ -357,7 +359,21 @@ class AuxioLink(private val context: Context) {
                     ?: "",
             childOf = extras?.getString("$connectedPackage.key.CHILD_OF") ?: "",
             tab = tabKindOf(id),
+            kind = itemKindOf(id),
         )
+    }
+
+    /** Auxio's item ids look like `mi` + `u` + format char + item char + uuid, see `Music.UID`. */
+    private fun itemKindOf(id: String): String {
+        if (!id.startsWith("miu") || id.length < 5) return ItemKind.NONE
+        return when (id[4]) {
+            's' -> ItemKind.SONG
+            'a' -> ItemKind.ALBUM
+            'r' -> ItemKind.ARTIST
+            'g' -> ItemKind.GENRE
+            'p' -> ItemKind.PLAYLIST
+            else -> ItemKind.NONE
+        }
     }
 
     /** Auxio's compressed tab ids, see `TabNode.microId`. */

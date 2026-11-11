@@ -20,6 +20,7 @@ package org.oxycblt.auxio.companion.wear.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -65,9 +66,12 @@ fun HomeScreen(
 
     LaunchedEffect(Unit) { if (home !is Load.Ready) vm.loadHome() }
 
+    val listState = rememberScalingLazyListState(initialCenterItemIndex = 0)
+
+    Box(Modifier.fillMaxSize()) {
     ScalingLazyColumn(
         modifier = Modifier.fillMaxSize(),
-        state = rememberScalingLazyListState(initialCenterItemIndex = 0),
+        state = listState,
         autoCentering = null,
         contentPadding = PaddingValues(top = 26.dp, bottom = 40.dp, start = 12.dp, end = 12.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -139,9 +143,12 @@ fun HomeScreen(
                 val entries = h.value.items
                 items(entries.size, key = { "${entries[it].id}#$it" }) { i ->
                     val entry = entries[i]
-                    EntryRow(vm, entry, onClick = { onOpenEntry(entry) })
+                    // Spotify's home shelf shows just the title.
+                    EntryRow(vm, entry, onClick = { onOpenEntry(entry) }, titleOnly = true)
                 }
             }
         }
+    }
+    ScrollBar(listState)
     }
 }
