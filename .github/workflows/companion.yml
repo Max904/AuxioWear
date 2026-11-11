@@ -1,0 +1,65 @@
+name: Wear OS Companion Build
+
+on:
+  push:
+  pull_request:
+  # Lets you run it by hand from the Actions tab.
+  workflow_dispatch:
+
+concurrency:
+  group: companion-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: "jetbrains"
+
+      # Installs the SDK and accepts licenses so Gradle can fetch platform 37 on its own.
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android platform
+        run: sdkmanager "platforms;android-37"
+
+      - name: Set up Gradle (with dependency caching)
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build phone bridge and watch app (debug)
+        run: ./gradlew :phone:assembleDebug :wear:assembleDebug --stacktrace
+
+      # Both APKs come from one run, so they share a debug key. The Wear Data Layer only links
+      # apps signed with the same key, so install these two together.
+      - name: Upload phone APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Auxio_Companion_Phone
+          path: phone/build/outputs/apk/debug/phone-debug.apk
+          if-no-files-found: error
+
+      - name: Upload watch APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Auxio_Companion_Wear
+          path: wear/build/outputs/apk/debug/wear-debug.apk
+          if-no-files-found: error
+
+      - name: Upload build reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: companion-build-reports
+          path: |
+            **/build/reports/
+          if-no-files-found: ignore
