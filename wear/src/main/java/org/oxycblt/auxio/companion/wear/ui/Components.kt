@@ -18,6 +18,10 @@
 
 package org.oxycblt.auxio.companion.wear.ui
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -314,29 +318,46 @@ fun PageDots(count: Int, current: Int, modifier: Modifier = Modifier) {
 /**
  * The curved scroll indicator hugging the right edge of the round screen: a dim track with a
  * lighter thumb showing which part of the list is on screen. Hidden when everything fits.
+ *
+ * The thumb glides to its new position with a spring instead of jumping item by item, and is
+ * brighter while the list is moving than when it rests.
+ *
+ * @param startAngle where the track starts, in degrees clockwise from 3 o'clock
+ * @param span how many degrees the track covers
  */
 @Composable
-fun ScrollBar(state: ScalingLazyListState, modifier: Modifier = Modifier) {
+fun ScrollBar(
+    state: ScalingLazyListState,
+    modifier: Modifier = Modifier,
+    startAngle: Float = -26f,
+    span: Float = 52f,
+) {
     val info = state.layoutInfo
     val total = info.totalItemsCount
     val visible = info.visibleItemsInfo
-    if (total < 2 || visible.isEmpty()) return
-    val first = visible.first().index
-    val last = visible.last().index
-    if (first == 0 && last >= total - 1) return
+    val scrollable =
+        total >= 2 &&
+            visible.isNotEmpty() &&
+            !(visible.first().index == 0 && visible.last().index >= total - 1)
 
-    val from = first.toFloat() / total
-    val to = (last + 1).toFloat() / total
+    val targetFrom = if (scrollable) visible.first().index.toFloat() / total else 0f
+    val targetTo = if (scrollable) (visible.last().index + 1).toFloat() / total else 1f
+    val glide = spring<Float>(stiffness = Spring.StiffnessMediumLow, dampingRatio = Spring.DampingRatioNoBouncy)
+    val from by animateFloatAsState(targetFrom, glide, label = "scrollFrom")
+    val to by animateFloatAsState(targetTo, glide, label = "scrollTo")
+    val strength by
+        animateFloatAsState(if (state.isScrollInProgress) 1f else 0.6f, tween(300), label = "scrollAlpha")
+
+    if (!scrollable) return
+
     Canvas(modifier.fillMaxSize()) {
         val stroke = 4.dp.toPx()
         val inset = stroke / 2 + 3.dp.toPx()
         val topLeft = Offset(inset, inset)
         val arc = Size(size.width - inset * 2, size.height - inset * 2)
-        val start = -26f
-        val span = 52f
         drawArc(
-            color = Color(0x33FFFFFF),
-            startAngle = start,
+            color = Color.White.copy(alpha = 0.2f * strength),
+            startAngle = startAngle,
             sweepAngle = span,
             useCenter = false,
             topLeft = topLeft,
@@ -344,8 +365,8 @@ fun ScrollBar(state: ScalingLazyListState, modifier: Modifier = Modifier) {
             style = Stroke(stroke, cap = StrokeCap.Round),
         )
         drawArc(
-            color = Color(0xCCFFFFFF),
-            startAngle = start + span * from,
+            color = Color.White.copy(alpha = 0.8f * strength),
+            startAngle = startAngle + span * from,
             sweepAngle = (span * (to - from)).coerceAtLeast(6f),
             useCenter = false,
             topLeft = topLeft,

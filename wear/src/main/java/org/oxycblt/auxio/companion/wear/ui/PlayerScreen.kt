@@ -19,6 +19,7 @@
 package org.oxycblt.auxio.companion.wear.ui
 
 import android.os.SystemClock
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -34,6 +35,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -190,13 +192,16 @@ fun PlayerScreen(vm: WatchViewModel, onSleep: () -> Unit) {
             }
         }
 
+        val dotsShift by
+            animateDpAsState(if (pager.currentPage == PAGE_QUEUE) (-52).dp else 0.dp, label = "dotsShift")
         PageDots(
             count = PAGE_COUNT,
             current = pager.currentPage,
             modifier =
-                Modifier.align(Alignment.CenterEnd).padding(end = 7.dp).graphicsLayer {
-                    alpha = dotsAlpha
-                },
+                Modifier.align(Alignment.CenterEnd)
+                    .offset(y = dotsShift)
+                    .padding(end = 7.dp)
+                    .graphicsLayer { alpha = dotsAlpha },
         )
 
         if (showVolume && state.maxVolume > 0) {
@@ -417,6 +422,7 @@ private fun QueuePage(vm: WatchViewModel, snap: Snapshot, onSleep: () -> Unit) {
             .collect { center -> if (center >= paged.items.size - 2) paged.loadMore() }
     }
 
+    Box(Modifier.fillMaxSize()) {
     ScalingLazyColumn(
         modifier = Modifier.fillMaxSize(),
         state = listState,
@@ -457,6 +463,9 @@ private fun QueuePage(vm: WatchViewModel, snap: Snapshot, onSleep: () -> Unit) {
                 onClick = { vm.skipToQueue(entry.index) },
             )
         }
+    }
+    // Lower half of the right edge: the page dots move to the upper half on this page.
+    ScrollBar(listState, startAngle = 8f, span = 52f)
     }
 }
 
