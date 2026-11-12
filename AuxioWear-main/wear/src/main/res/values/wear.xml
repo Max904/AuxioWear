@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Lets the phone app detect that the watch app is installed. Must match Wire.CAPABILITY_WATCH. -->
+    <string-array name="android_wear_capabilities">
+        <item>auxio_companion_watch</item>
+    </string-array>
+</resources>
