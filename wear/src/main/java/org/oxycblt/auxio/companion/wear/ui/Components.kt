@@ -277,12 +277,14 @@ fun IconToggle(
     active: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    boxSize: Dp = 44.dp,
+    iconSize: Dp = 28.dp,
 ) {
     Box(
-        modifier = modifier.size(44.dp).clip(CircleShape).clickable(onClick = onClick),
+        modifier = modifier.size(boxSize).clip(CircleShape).clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Ico(icon, tint = if (active) Palette.Accent else Palette.White, size = 28.dp)
+        Ico(icon, tint = if (active) Palette.Accent else Palette.White, size = iconSize)
     }
 }
 

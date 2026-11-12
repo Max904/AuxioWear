@@ -226,18 +226,7 @@ private fun CoverPage(vm: WatchViewModel, snap: Snapshot) {
             }
         }
 
-        // Darken the top (clock) and bottom (title) so the text stays readable on any cover.
-        Box(
-            Modifier.fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        0f to Color(0x99000000),
-                        0.25f to Color.Transparent,
-                        0.55f to Color(0x11000000),
-                        1f to Color(0xE6000000),
-                    )
-                )
-        )
+        Vignette(dim = 0x59, edge = 0xD0)
 
         Clock(Modifier.align(Alignment.TopCenter).padding(top = 14.dp), size = 22.sp)
 
@@ -252,19 +241,19 @@ private fun CoverPage(vm: WatchViewModel, snap: Snapshot) {
         }
 
         Column(
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 30.dp),
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             // Long titles scroll across the whole width, short ones sit centred.
-            Txt(state.title, size = 24.sp, align = TextAlign.Center, marquee = true, modifier = Modifier.fillMaxWidth())
-            Spacer(Modifier.height(2.dp))
+            Txt(state.title, size = 22.sp, align = TextAlign.Center, marquee = true, modifier = Modifier.fillMaxWidth())
+            Spacer(Modifier.height(4.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 // Stands in for Spotify's logo next to the artist.
                 Box(
-                    Modifier.size(22.dp).clip(CircleShape).background(Palette.Accent),
+                    Modifier.size(18.dp).clip(CircleShape).background(Palette.Accent),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Ico(Icons.Rounded.MusicNote, tint = Palette.Black, size = 14.dp)
+                    Ico(Icons.Rounded.MusicNote, tint = Palette.Black, size = 12.dp)
                 }
                 Spacer(Modifier.width(6.dp))
                 Txt(state.artist, size = 20.sp, weight = FontWeight.Medium, color = Palette.Accent)
@@ -292,21 +281,30 @@ private fun ControlsPage(vm: WatchViewModel, snap: Snapshot, onQueue: () -> Unit
                 modifier = Modifier.fillMaxSize(),
             )
         }
-        Box(Modifier.fillMaxSize().background(Color(0xCC000000)))
+        Vignette(dim = 0x73, edge = 0xE0)
 
-        Clock(Modifier.align(Alignment.TopCenter).padding(top = 14.dp), color = Palette.White, size = 20.sp)
+        // The clock sits in a black capsule at the very top, like Spotify's.
+        Box(
+            Modifier.align(Alignment.TopCenter)
+                .padding(top = 4.dp)
+                .clip(RoundedCornerShape(50))
+                .background(Palette.Black)
+                .padding(horizontal = 14.dp, vertical = 2.dp)
+        ) {
+            Clock(color = Palette.White, size = 19.sp)
+        }
 
-        // Title and artist under the clock.
+        // Title and (grey) artist right under it.
         Column(
-            modifier = Modifier.align(Alignment.TopCenter).padding(top = 40.dp),
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = 30.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Txt(state.title, size = 24.sp, align = TextAlign.Center, marquee = true, modifier = Modifier.fillMaxWidth())
+            Txt(state.title, size = 22.sp, align = TextAlign.Center, marquee = true, modifier = Modifier.fillMaxWidth())
             Txt(
                 state.artist,
                 size = 18.sp,
                 weight = FontWeight.Medium,
-                color = Palette.Accent,
+                color = Palette.Muted,
                 align = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 30.dp),
             )
@@ -314,7 +312,7 @@ private fun ControlsPage(vm: WatchViewModel, snap: Snapshot, onQueue: () -> Unit
 
         // Previous / play-pause in a progress ring / next.
         Row(
-            modifier = Modifier.align(Alignment.Center).fillMaxWidth().padding(horizontal = 20.dp).padding(top = 10.dp),
+            modifier = Modifier.align(Alignment.Center).fillMaxWidth().padding(horizontal = 12.dp).padding(top = 10.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -325,19 +323,33 @@ private fun ControlsPage(vm: WatchViewModel, snap: Snapshot, onQueue: () -> Unit
 
         // Shuffle and repeat flank the queue button, which sits lower, following the bezel.
         Row(
-            modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 42.dp).padding(bottom = 14.dp),
+            modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 26.dp).padding(bottom = 9.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.Bottom,
         ) {
-            Box(Modifier.padding(bottom = 26.dp)) {
-                IconToggle(Icons.Rounded.Shuffle, active = state.shuffle, onClick = { vm.setShuffle(!state.shuffle) })
+            Box(Modifier.padding(bottom = 24.dp)) {
+                IconToggle(
+                    Icons.Rounded.Shuffle,
+                    active = state.shuffle,
+                    onClick = { vm.setShuffle(!state.shuffle) },
+                    boxSize = 52.dp,
+                    iconSize = 38.dp,
+                )
             }
-            IconToggle(Icons.AutoMirrored.Rounded.QueueMusic, active = false, onClick = onQueue)
-            Box(Modifier.padding(bottom = 26.dp)) {
+            IconToggle(
+                Icons.AutoMirrored.Rounded.QueueMusic,
+                active = false,
+                onClick = onQueue,
+                boxSize = 52.dp,
+                iconSize = 44.dp,
+            )
+            Box(Modifier.padding(bottom = 24.dp)) {
                 IconToggle(
                     if (state.repeat == 2) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat,
                     active = state.repeat != 0,
                     onClick = { vm.setRepeat((state.repeat + 1) % 3) },
+                    boxSize = 52.dp,
+                    iconSize = 38.dp,
                 )
             }
         }
@@ -347,10 +359,10 @@ private fun ControlsPage(vm: WatchViewModel, snap: Snapshot, onQueue: () -> Unit
 @Composable
 private fun SkipButton(icon: androidx.compose.ui.graphics.vector.ImageVector, enabled: Boolean, onClick: () -> Unit) {
     Box(
-        Modifier.size(56.dp).clip(CircleShape).clickable(onClick = onClick),
+        Modifier.size(64.dp).clip(CircleShape).clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Ico(icon, tint = if (enabled) Palette.White else Color(0x55FFFFFF), size = 46.dp)
+        Ico(icon, tint = if (enabled) Palette.White else Color(0x55FFFFFF), size = 60.dp)
     }
 }
 
@@ -358,7 +370,7 @@ private fun SkipButton(icon: androidx.compose.ui.graphics.vector.ImageVector, en
 @Composable
 private fun PlayRing(progress: Float, playing: Boolean, onClick: () -> Unit) {
     Box(
-        Modifier.size(92.dp).clip(CircleShape).clickable(onClick = onClick),
+        Modifier.size(66.dp).clip(CircleShape).clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Canvas(Modifier.fillMaxSize()) {
@@ -384,7 +396,7 @@ private fun PlayRing(progress: Float, playing: Boolean, onClick: () -> Unit) {
                 style = Stroke(stroke, cap = StrokeCap.Round),
             )
         }
-        Ico(if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, size = 48.dp)
+        Ico(if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, size = 62.dp)
     }
 }
 
@@ -446,6 +458,20 @@ private fun QueuePage(vm: WatchViewModel, snap: Snapshot, onSleep: () -> Unit) {
             )
         }
     }
+}
+
+/**
+ * Spotify darkens the cover with a vignette: bright in the middle, nearly black at the edges, so
+ * text on the round screen stays readable on any artwork. [dim] is a flat darkening over the whole
+ * cover, [edge] the extra darkness reached at the rim (both as 0..255 alpha).
+ */
+@Composable
+private fun Vignette(dim: Int, edge: Int) {
+    Box(Modifier.fillMaxSize().background(Color(dim shl 24)))
+    Box(
+        Modifier.fillMaxSize()
+            .background(Brush.radialGradient(0.35f to Color.Transparent, 1f to Color(edge shl 24)))
+    )
 }
 
 @Composable

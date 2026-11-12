@@ -21,7 +21,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: "21"
-          distribution: "jetbrains"
+          distribution: "temurin"
 
       # ubuntu-latest already ships the Android SDK. Accepting licenses is enough: the Android
       # Gradle Plugin downloads the exact platform it needs (e.g. API 37) by itself.
