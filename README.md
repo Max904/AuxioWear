@@ -1,66 +1,65 @@
-# Auxio Companion (Wear OS)
+<p align="center">
+  <img src="docs/icon.png" width="96" alt="Auxio Wear icon">
+</p>
 
-A Wear OS remote for [Auxio](https://github.com/OxygenCobalt/Auxio), styled after Spotify's watch app.
-Auxio itself is **not modified**.
+<h1 align="center">Auxio Wear</h1>
+
+<p align="center">
+  A Wear OS remote for <a href="https://github.com/OxygenCobalt/Auxio">Auxio</a>, styled after Spotify's watch app.<br>
+  Auxio itself is not modified.
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/player.png" width="19%" alt="Now playing">
+  <img src="docs/screenshots/controls.png" width="19%" alt="Controls">
+  <img src="docs/screenshots/queue.png" width="19%" alt="Queue">
+  <img src="docs/screenshots/home.png" width="19%" alt="Home">
+  <img src="docs/screenshots/library.png" width="19%" alt="Library">
+</p>
+
+## Features
+
+- **Now playing:** full-bleed cover, scrolling title, tap to pause.
+- **Controls:** progress ring, skip, shuffle and repeat. The crown changes the phone's volume.
+- **Library:** songs, albums, artists, genres and playlists, plus search and the play queue.
+- **Media controls:** Auxio shows up in Wear OS's own media controls while it plays.
+- **Your colors:** matches Auxio's accent, including Dynamic (Material You).
+- **Sleep timer** for falling asleep to music.
+
+## How it works
+
+Auxio exposes its library and playback to other apps, the same way it does for Android Auto. A watch can't reach that directly, so a small **phone app** talks to Auxio and relays everything to the **watch app** over Wear OS's Data Layer.
 
 ```
- Wear OS watch                    Android phone
-┌──────────────┐  Data Layer   ┌────────────────────┐  MediaBrowser /   ┌───────┐
-│  :wear       │ ────────────▶ │  :phone (bridge)   │  MediaController  │ Auxio │
-│  Compose UI  │ ◀──────────── │  Play Services     │ ────────────────▶ │       │
-└──────────────┘   :protocol   └────────────────────┘ ◀──────────────── └───────┘
+watch app  <-->  phone app  <-->  Auxio
 ```
 
-Why a bridge: Auxio's `AuxioService` is a `MediaBrowserService` with a full library tree, search, queue and a
-`MediaSession` (that's what Android Auto uses), but a watch is a different device and can't bind to it. The Wear
-Data Layer needs Google Play Services, which a FOSS app like Auxio shouldn't take on, so the phone half lives in
-its own tiny app that talks to Auxio exactly like Android Auto does.
+## Install
 
-## Build
-Open this folder in Android Studio. It mirrors Auxio's AGP/Kotlin versions.
+You need Auxio on an Android phone and a paired Wear OS 3+ watch.
 
-- `:phone` → install on the phone
-- `:wear`  → install on the watch
-- Both share `applicationId org.oxycblt.auxio.companion` and must be signed with the **same key**
-  (debug builds on one machine are). The Data Layer ignores apps that differ.
+1. Open the **Actions** tab, pick the latest successful run and download both artifacts.
+2. Install **Auxio_Companion_Phone** on the phone and **Auxio_Companion_Wear** on the watch. Take both from the same run, they must share a signing key.
+3. Open Auxio once, then open **Auxio Companion** on the phone, then **Auxio** on the watch. Allow notifications when asked.
+4. In the phone app, pick the same accent color you use in Auxio.
 
-Then: install Auxio, open it once, open **Auxio Companion** on the phone (diagnostics screen), open **Auxio** on the watch.
-Works with Auxio release and its `.debug` build.
+To build it yourself, open this folder in Android Studio, or run `./gradlew :phone:assembleDebug :wear:assembleDebug`.
 
-## Screens
-- **Home**: Search + Library pills, Shuffle all, now-playing row, playlists (or albums)
-- **Library / lists**: tabs → albums/artists/genres/playlists → songs, paged, with covers; Play button on containers
-- **Player** (vertical pager): cover + bezel progress + clock → controls + seek + crown volume → queue with shuffle/repeat/sleep timer
-- **Search**: watch keyboard/voice → Auxio's own search engine
+## Good to know
 
-## Not verified: read this
-Written without an Android SDK, Kotlin compiler or network, so **it has never been compiled or run**. Expect a few
-compile errors to fix on first build (most likely: Wear Compose / icon import names, library version pins in the root
-`build.gradle`). Things I'm least sure of at runtime:
-1. Whether Auxio starts playback when the bridge triggers it while Auxio's process is cold on Android 12+
-   (foreground-service background-start rules). If play does nothing on a cold start, open Auxio once first.
-2. `RemoteInputIntentHelper` (watch search input) API shape in `wear-input` 1.1.0.
-3. Sleep timer uses an inexact alarm: can fire a few minutes late in Doze.
-4. The bridge parses Auxio's compact ids (`mct*`) for tab icons only; if Auxio changes them, icons degrade to generic.
+- Auxio keeps its theme private, so the accent color is chosen once in the phone app.
+- Auxio takes over the watch's media controls once you've opened the watch app, and stays there while music plays. If the phone app has been stopped by Android, open the watch app again.
+- Auxio has no play history to share, so Home shows your playlists (or albums) rather than "recently played".
 
-## Known gaps / ideas
-No tile or complication, no ambient mode, no previous-queue items, library changes aren't live-pushed to the watch.
-Accent colour: `Palette.Accent` in `wear/.../ui/Theme.kt`.
+## Project layout
 
-## CI
-`.github/workflows/companion.yml` builds both debug APKs on every push/PR (and on
-demand via *Actions → Wear OS Companion Build → Run workflow*). Download `Auxio_Companion_Phone` and
-`Auxio_Companion_Wear` from the run's artifacts. Install both from the **same run**: each run generates a fresh debug
-key, and the Data Layer only links apps signed with the same key. On compile failure the logs show the errors and
-the Gradle reports are uploaded.
+| Folder | What it is |
+| --- | --- |
+| `phone/` | Phone app: connects to Auxio and relays to the watch |
+| `wear/` | Watch app: the Compose UI and the media session |
+| `protocol/` | Messages shared by both |
 
-## Theme sync
-Auxio stores its accent in private preferences no other app can read, so the colour is chosen once in the phone
-app ("Watch accent color", same 16 accents + Dynamic as Auxio). The watch picks it up within a few seconds and
-remembers it. "Dynamic" follows the phone's Material You colour live. Making this fully automatic would need a small
-patch to Auxio itself (e.g. publishing its accent in the media browser root extras).
+## License
 
-## UI notes (matched to Spotify's watch app screenshots)
-Cover page: accent clock, endlessly scrolling title, tap = pause with a pause glyph. Controls page: dimmed cover,
-progress ring around play/pause, shuffle · queue · repeat on an arc. Lists: regular-weight titles, round covers for
-artists, grey pill shortcuts, plain icon rows for the library tabs, curved scroll bar on the right edge.
+GPL-3.0, like Auxio. See [LICENSE](LICENSE).
+Not affiliated with Auxio or Spotify. The design is inspired by Spotify's Wear OS app.
