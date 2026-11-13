@@ -61,7 +61,7 @@ To build it yourself, open this folder in Android Studio, or run `./gradlew :pho
 
 ## Credits
 
-- **[Max904yt](https://github.com/Max904)**: idea, design direction, testing and feedback
+- **[Max904](https://github.com/Max904)**: idea, design direction, testing and feedback
 - **Claude** (by [Anthropic](https://www.anthropic.com)): code, written together with Max904yt
 - **[Auxio](https://github.com/OxygenCobalt/Auxio)** by OxygenCobalt, the music player this controls
 
