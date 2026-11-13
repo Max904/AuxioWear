@@ -21,8 +21,6 @@ package org.oxycblt.auxio.companion.wear
 import android.content.Context
 import com.google.android.gms.wearable.CapabilityClient
 import com.google.android.gms.wearable.CapabilityInfo
-import com.google.android.gms.wearable.MessageClient
-import com.google.android.gms.wearable.MessageEvent
 import com.google.android.gms.wearable.Node
 import com.google.android.gms.wearable.Wearable
 import java.util.concurrent.ConcurrentHashMap
@@ -48,8 +46,7 @@ import org.oxycblt.auxio.companion.protocol.Wire
  * answer a specific request complete that request's [call], everything is also published on
  * [events] so unsolicited pushes (playback changes) reach the UI.
  */
-class PhoneLink(context: Context) :
-    MessageClient.OnMessageReceivedListener, CapabilityClient.OnCapabilityChangedListener {
+class PhoneLink(context: Context) : CapabilityClient.OnCapabilityChangedListener {
     private val messages = Wearable.getMessageClient(context)
     private val capabilities = Wearable.getCapabilityClient(context)
 
@@ -66,13 +63,14 @@ class PhoneLink(context: Context) :
     private val pending = ConcurrentHashMap<Int, CompletableDeferred<Event>>()
     private val nextId = AtomicInteger(1)
 
+    // Incoming messages are not listened for here: they arrive through [WatchListenerService],
+    // which also works while the app's UI is closed, and call [dispatch].
+
     fun start() {
-        messages.addListener(this)
         capabilities.addListener(this, Wire.CAPABILITY_PHONE)
     }
 
     fun stop() {
-        messages.removeListener(this)
         capabilities.removeListener(this)
     }
 
@@ -94,20 +92,23 @@ class PhoneLink(context: Context) :
 
     private fun pick(nodes: Set<Node>): String? = (nodes.firstOrNull { it.isNearby } ?: nodes.firstOrNull())?.id
 
-    override fun onMessageReceived(event: MessageEvent) {
-        when (event.path) {
+    /** Feed in a message from the phone. Returns the decoded event for state/status messages. */
+    fun dispatch(path: String, data: ByteArray): Event? {
+        when (path) {
             Wire.PATH_EVENT -> {
-                val decoded = Event.decode(event.data) ?: return
+                val decoded = Event.decode(data) ?: return null
                 if (decoded.reqId != 0) {
                     pending.remove(decoded.reqId)?.complete(decoded)
                 }
                 _events.tryEmit(decoded)
+                return decoded
             }
             Wire.PATH_ART -> {
-                val art = Art.decode(event.data) ?: return
+                val art = Art.decode(data) ?: return null
                 _arts.tryEmit(art)
             }
         }
+        return null
     }
 
     /** Fire and forget. Returns false if there is no phone or the send failed. */

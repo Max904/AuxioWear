@@ -39,15 +39,23 @@ class Pusher(
     private val link: AuxioLink,
     private val scope: CoroutineScope,
 ) {
-    @Volatile private var node: String? = null
+    private val prefs = context.getSharedPreferences("pusher", Context.MODE_PRIVATE)
+
+    // The last watch that talked to us survives the bridge process being killed.
+    @Volatile private var node: String? = prefs.getString("node", null)
     @Volatile private var lastSeen = 0L
+    @Volatile private var lastPushedPlaying = false
     private val handler = Handler(Looper.getMainLooper())
 
     private val push = Runnable {
         scope.launch {
             val target = node ?: return@launch
-            if (SystemClock.elapsedRealtime() - lastSeen > ACTIVE_WINDOW_MS) return@launch
             val state = link.snapshot(SleepTimer.remainingMs(context))
+            // The watch UI is open (it pings us), or music is playing / just stopped: the watch's
+            // media controls need to follow along even when its app is closed.
+            val watching = SystemClock.elapsedRealtime() - lastSeen <= ACTIVE_WINDOW_MS
+            if (!watching && !state.playing && !lastPushedPlaying) return@launch
+            lastPushedPlaying = state.playing
             context.sendEvent(target, Event(Evt.STATE, state = state))
         }
     }
@@ -62,6 +70,7 @@ class Pusher(
 
     /** Remember that [nodeId] is looking at us right now. */
     fun touch(nodeId: String) {
+        if (node != nodeId) prefs.edit().putString("node", nodeId).apply()
         node = nodeId
         lastSeen = SystemClock.elapsedRealtime()
     }

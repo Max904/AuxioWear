@@ -105,6 +105,9 @@ object Transport {
 
     /** num = +1 / -1, adjusts the phone's media volume. */
     const val VOLUME = "volume"
+
+    /** num = absolute volume index, sets the phone's media volume. */
+    const val VOLUME_SET = "volume_set"
 }
 
 /** Event types sent by the phone. */
