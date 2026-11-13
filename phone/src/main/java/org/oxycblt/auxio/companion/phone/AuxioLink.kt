@@ -427,8 +427,16 @@ class AuxioLink(private val context: Context) {
                     )
                 Transport.SKIP_TO_QUEUE -> tc.skipToQueueItem(num)
                 Transport.VOLUME -> adjustVolume(num)
+                Transport.VOLUME_SET -> setVolume(num.toInt())
             }
         }
+    }
+
+    private fun setVolume(level: Int) {
+        val audio = context.getSystemService(AudioManager::class.java)
+        val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+        audio.setStreamVolume(AudioManager.STREAM_MUSIC, level.coerceIn(0, max), 0)
+        notifyChanged()
     }
 
     private fun adjustVolume(direction: Long) {
