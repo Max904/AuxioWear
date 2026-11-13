@@ -38,8 +38,8 @@ watch app  <-->  phone app  <-->  Auxio
 
 You need Auxio on an Android phone and a paired Wear OS 3+ watch.
 
-1. Open the **Actions** tab, pick the latest successful run and download both artifacts.
-2. Install **Auxio_Companion_Phone** on the phone and **Auxio_Companion_Wear** on the watch. Take both from the same run, they must share a signing key.
+1. Check the releases tab
+2. Install **Auxio Companion** on the phone and **Auxio Wear** on the watch.
 3. Open Auxio once, then open **Auxio Companion** on the phone, then **Auxio** on the watch. Allow notifications when asked.
 4. In the phone app, pick the same accent color you use in Auxio.
 
