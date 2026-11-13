@@ -38,6 +38,7 @@ import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import androidx.media.VolumeProviderCompat
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -66,6 +67,8 @@ class RemoteSessionService : Service() {
     private var lastActiveAt = SystemClock.elapsedRealtime()
     private var lastPlayingAt = SystemClock.elapsedRealtime()
     private var stopped = false
+    private var wasPlaying = false
+    private var claimJob: Job? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -172,28 +175,15 @@ class RemoteSessionService : Service() {
                 .build()
         )
 
-        val actions =
-            PlaybackStateCompat.ACTION_PLAY or
-                PlaybackStateCompat.ACTION_PAUSE or
-                PlaybackStateCompat.ACTION_PLAY_PAUSE or
-                PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
-                PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
-                PlaybackStateCompat.ACTION_SEEK_TO or
-                PlaybackStateCompat.ACTION_STOP or
-                PlaybackStateCompat.ACTION_SET_SHUFFLE_MODE or
-                PlaybackStateCompat.ACTION_SET_REPEAT_MODE
         val playbackState =
             when {
                 !s.active -> PlaybackStateCompat.STATE_NONE
                 s.playing -> PlaybackStateCompat.STATE_PLAYING
                 else -> PlaybackStateCompat.STATE_PAUSED
             }
-        session.setPlaybackState(
-            PlaybackStateCompat.Builder()
-                .setActions(actions)
-                .setState(playbackState, snap.positionAt(now), if (s.playing) s.speed else 0f)
-                .build()
-        )
+        session.setPlaybackState(buildState(snap, playbackState, now))
+        if (s.playing && !wasPlaying) claimPriority()
+        wasPlaying = s.playing
         session.setShuffleMode(
             if (s.shuffle) PlaybackStateCompat.SHUFFLE_MODE_ALL
             else PlaybackStateCompat.SHUFFLE_MODE_NONE
@@ -213,6 +203,53 @@ class RemoteSessionService : Service() {
         } catch (e: SecurityException) {
             // Notification permission not granted: the media session itself still works.
         }
+    }
+
+    private fun buildState(snap: Snapshot, state: Int, now: Long): PlaybackStateCompat {
+        val actions =
+            PlaybackStateCompat.ACTION_PLAY or
+                PlaybackStateCompat.ACTION_PAUSE or
+                PlaybackStateCompat.ACTION_PLAY_PAUSE or
+                PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
+                PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
+                PlaybackStateCompat.ACTION_SEEK_TO or
+                PlaybackStateCompat.ACTION_STOP or
+                PlaybackStateCompat.ACTION_SET_SHUFFLE_MODE or
+                PlaybackStateCompat.ACTION_SET_REPEAT_MODE
+        val speed = if (state == PlaybackStateCompat.STATE_PLAYING) snap.state.speed else 0f
+        return PlaybackStateCompat.Builder()
+            .setActions(actions)
+            .setState(state, snap.positionAt(now), speed)
+            .build()
+    }
+
+    /**
+     * Win Wear OS's media controls back from its generic "phone media" session.
+     *
+     * Wear OS shows the session that most recently *started* playing. Android only raises a
+     * session's priority when it goes from a non-active state into an active one, so re-sending
+     * "playing" does nothing. When playback starts, and the phone's own mirrored session is
+     * updating at the very same moment (e.g. you unpause on the phone), that mirrored session can
+     * land after ours and take over. So: pass through "paused" into "playing" to register a fresh
+     * transition now, and again after the other session has had time to settle.
+     */
+    private fun claimPriority() {
+        claimJob?.cancel()
+        claimJob =
+            scope.launch {
+                for (wait in longArrayOf(0, 1_500, 4_000)) {
+                    delay(wait)
+                    val snap = hub.player.value
+                    if (!snap.state.playing) return@launch
+                    val now = SystemClock.elapsedRealtime()
+                    session.setPlaybackState(
+                        buildState(snap, PlaybackStateCompat.STATE_PAUSED, now)
+                    )
+                    session.setPlaybackState(
+                        buildState(snap, PlaybackStateCompat.STATE_PLAYING, now)
+                    )
+                }
+            }
     }
 
     /**
