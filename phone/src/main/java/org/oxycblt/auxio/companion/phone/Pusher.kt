@@ -47,7 +47,8 @@ class Pusher(
     @Volatile private var lastPushedPlaying = false
     private val handler = Handler(Looper.getMainLooper())
 
-    private val push = Runnable {
+    // Explicit type: the runnable re-schedules itself, so Kotlin can't infer it.
+    private val push: Runnable = Runnable {
         scope.launch {
             val target = node ?: return@launch
             val state = link.snapshot(SleepTimer.remainingMs(context))
