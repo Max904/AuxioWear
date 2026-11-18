@@ -68,6 +68,7 @@ class RemoteSessionService : Service() {
     private var lastPlayingAt = SystemClock.elapsedRealtime()
     private var stopped = false
     private var wasPlaying = false
+    private var lastActiveSnap: Snapshot? = null
     private var claimJob: Job? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -135,7 +136,17 @@ class RemoteSessionService : Service() {
             while (true) {
                 delay(10_000)
                 val now = SystemClock.elapsedRealtime()
-                if (now - lastActiveAt > 60_000 || now - lastPlayingAt > 30 * 60_000) {
+                // Judge by the current state, not by whether a message happened to arrive lately.
+                val state = hub.player.value.state
+                if (state.active) lastActiveAt = now
+                if (state.playing) lastPlayingAt = now
+
+                // Auxio's session can vanish for a moment (the phone app reconnecting, a Bluetooth
+                // hiccup). Hold on to the media controls through that instead of dropping them.
+                if (!state.active && now - lastActiveAt > INACTIVE_GRACE_MS) {
+                    session.isActive = false
+                }
+                if (now - lastActiveAt > GIVE_UP_INACTIVE_MS || now - lastPlayingAt > GIVE_UP_PAUSED_MS) {
                     shutdown()
                     break
                 }
@@ -149,7 +160,8 @@ class RemoteSessionService : Service() {
             ACTION_NEXT -> hub.next()
             ACTION_PREV -> hub.prev()
         }
-        return START_NOT_STICKY
+        // If Android kills us for memory, ask to be restarted (we then reconnect to the phone).
+        return START_STICKY
     }
 
     override fun onDestroy() {
@@ -161,10 +173,19 @@ class RemoteSessionService : Service() {
     private fun render(snap: Snapshot, art: Bitmap?) {
         val s = snap.state
         val now = SystemClock.elapsedRealtime()
-        if (s.active) lastActiveAt = now
-        if (s.playing) lastPlayingAt = now
 
-        session.isActive = s.active
+        if (!s.active) {
+            // Keep the last track on the controls, shown as paused. The loop above gives the
+            // session up only if Auxio stays gone.
+            wasPlaying = false
+            lastActiveSnap?.let { session.setPlaybackState(buildState(it, PlaybackStateCompat.STATE_PAUSED, now)) }
+            return
+        }
+        lastActiveAt = now
+        if (s.playing) lastPlayingAt = now
+        lastActiveSnap = snap
+
+        session.isActive = true
         session.setMetadata(
             MediaMetadataCompat.Builder()
                 .putString(MediaMetadataCompat.METADATA_KEY_TITLE, s.title)
@@ -176,11 +197,7 @@ class RemoteSessionService : Service() {
         )
 
         val playbackState =
-            when {
-                !s.active -> PlaybackStateCompat.STATE_NONE
-                s.playing -> PlaybackStateCompat.STATE_PLAYING
-                else -> PlaybackStateCompat.STATE_PAUSED
-            }
+            if (s.playing) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED
         session.setPlaybackState(buildState(snap, playbackState, now))
         if (s.playing && !wasPlaying) claimPriority()
         wasPlaying = s.playing
@@ -350,6 +367,9 @@ class RemoteSessionService : Service() {
     }
 
     companion object {
+        private const val INACTIVE_GRACE_MS = 30_000L
+        private const val GIVE_UP_INACTIVE_MS = 3 * 60_000L
+        private const val GIVE_UP_PAUSED_MS = 2 * 60 * 60_000L
         private const val CHANNEL_ID = "auxio_playback"
         private const val NOTIFICATION_ID = 1
         private const val ACTION_TOGGLE = "org.oxycblt.auxio.companion.TOGGLE"

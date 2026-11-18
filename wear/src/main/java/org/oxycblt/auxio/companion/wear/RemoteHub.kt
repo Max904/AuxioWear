@@ -179,7 +179,8 @@ class RemoteHub(app: Application) {
                             when {
                                 _status.value == null -> 2_000
                                 uiVisible.value -> 4_000
-                                else -> 15_000
+                                _player.value.state.playing -> 15_000
+                                else -> 45_000
                             }
                         )
                     }

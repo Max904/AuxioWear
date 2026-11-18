@@ -57,6 +57,9 @@ class Pusher(
             if (!watching && !state.playing && !lastPushedPlaying) return@launch
             lastPushedPlaying = state.playing
             context.sendEvent(target, Event(Evt.STATE, state = state))
+            // While music plays, keep nudging the watch. This wakes its media session again if
+            // Android stopped it, and resyncs the position.
+            if (state.playing) handler.postDelayed(push, HEARTBEAT_MS)
         }
     }
 
@@ -84,5 +87,6 @@ class Pusher(
     private companion object {
         const val ACTIVE_WINDOW_MS = 30_000L
         const val DEBOUNCE_MS = 120L
+        const val HEARTBEAT_MS = 30_000L
     }
 }
